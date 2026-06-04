@@ -2,6 +2,7 @@
 
 > 가맹점 등록·관리, API 키 발급·검증을 담당하는 서비스.
 > 다른 서비스의 인증 기반이 되는 출발점 서비스다.
+> 관련 문서: [시스템 구조 & 정책](./service-spec.md) · [API 명세](./api-spec.md) · [프로세스 & 메시지 설계](./service-process.md)
 
 ---
 
@@ -77,8 +78,8 @@ merchant (1) ──< (N) api_key
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
-| id | BIGSERIAL PK | 내부 식별자 |
-| merchant_no | VARCHAR(32) UNIQUE | 외부 노출용 가맹점 번호 |
+| id | BIGSERIAL PK | 내부 식별자 (서비스 간 X-Merchant-Id로 사용) |
+| merchant_no | VARCHAR(32) UNIQUE | 외부 노출용 관리 번호. `M`+yyyyMMdd+일련번호 (예: M20260531001) |
 | name | VARCHAR(128) | 상호명 |
 | business_no | VARCHAR(16) | 사업자등록번호 |
 | representative_name | VARCHAR(64) | 대표자명 |
@@ -88,7 +89,7 @@ merchant (1) ──< (N) api_key
 | webhook_url | VARCHAR(512) | 결제 결과 통지 URL |
 | created_at / updated_at | TIMESTAMP | 생성/수정 시각 |
 
-### api_key
+> **식별자 구분**: `merchantId`(PK)는 내부 서비스 간 식별자(X-Merchant-Id)로, `merchantNo`는 가맹점에게 노출 가능한 외부 관리 번호로 쓴다. 본 프로젝트는 단순함을 위해 외부 응답에도 `merchantId`를 노출하지만, 실무에서는 내부 PK 노출(순차 증가로 인한 규모 추측, 내부 구조 결합)을 피하기 위해 외부에는 `merchantNo`만 노출하는 방식이 권장된다.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
@@ -106,29 +107,29 @@ merchant (1) ──< (N) api_key
 CREATE TYPE merchant_status AS ENUM ('ACTIVE', 'SUSPENDED');
 
 CREATE TABLE merchant (
-    id                  BIGSERIAL       PRIMARY KEY,
-    merchant_no         VARCHAR(32)     NOT NULL UNIQUE,
-    name                VARCHAR(128)    NOT NULL,
-    business_no         VARCHAR(16)     NOT NULL,
-    representative_name VARCHAR(64)     NOT NULL,
-    status              merchant_status NOT NULL DEFAULT 'ACTIVE',
-    settlement_bank     VARCHAR(8),
-    settlement_account  VARCHAR(32),
-    webhook_url         VARCHAR(512),
-    created_at          TIMESTAMP       NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP       NOT NULL DEFAULT NOW()
+                          id                  BIGSERIAL       PRIMARY KEY,
+                          merchant_no         VARCHAR(32)     NOT NULL UNIQUE,
+                          name                VARCHAR(128)    NOT NULL,
+                          business_no         VARCHAR(16)     NOT NULL,
+                          representative_name VARCHAR(64)     NOT NULL,
+                          status              merchant_status NOT NULL DEFAULT 'ACTIVE',
+                          settlement_bank     VARCHAR(8),
+                          settlement_account  VARCHAR(32),
+                          webhook_url         VARCHAR(512),
+                          created_at          TIMESTAMP       NOT NULL DEFAULT NOW(),
+                          updated_at          TIMESTAMP       NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE api_key (
-    id           BIGSERIAL    PRIMARY KEY,
-    merchant_id  BIGINT       NOT NULL REFERENCES merchant(id),
-    key_hash     VARCHAR(64)  NOT NULL UNIQUE,
-    key_prefix   VARCHAR(20)  NOT NULL,
-    lookup_id    VARCHAR(16)  NOT NULL,
-    description  VARCHAR(128),
-    last_used_at TIMESTAMP,
-    revoked_at   TIMESTAMP,
-    created_at   TIMESTAMP    NOT NULL DEFAULT NOW()
+                         id           BIGSERIAL    PRIMARY KEY,
+                         merchant_id  BIGINT       NOT NULL REFERENCES merchant(id),
+                         key_hash     VARCHAR(64)  NOT NULL UNIQUE,
+                         key_prefix   VARCHAR(20)  NOT NULL,
+                         lookup_id    VARCHAR(16)  NOT NULL,
+                         description  VARCHAR(128),
+                         last_used_at TIMESTAMP,
+                         revoked_at   TIMESTAMP,
+                         created_at   TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_api_key_lookup_id ON api_key(lookup_id);
 CREATE INDEX idx_api_key_merchant_id ON api_key(merchant_id);
@@ -241,10 +242,10 @@ CREATE INDEX idx_api_key_merchant_id ON api_key(merchant_id);
 **Request**
 ```json
 {
-  "status": "SUSPENDED",
-  "reason": "정산 계좌 검증 실패"
+  "status": "SUSPENDED"
 }
 ```
+> 상태 변경 사유(reason)는 MVP 범위에서 저장하지 않는다. 사유·이력 관리가 필요해지면 `merchant_status_history` 테이블을 두는 방향으로 확장한다.
 
 **Response (200)**
 ```json
@@ -266,7 +267,7 @@ CREATE INDEX idx_api_key_merchant_id ON api_key(merchant_id);
 }
 ```
 
-**Response (200) — 유효**
+**Response (200) — 유효 (정상 가맹점)**
 ```json
 {
   "valid": true,
@@ -275,14 +276,25 @@ CREATE INDEX idx_api_key_merchant_id ON api_key(merchant_id);
 }
 ```
 
-**Response (200) — 무효**
+**Response (200) — 키는 유효하나 가맹점 정지**
+```json
+{
+  "valid": true,
+  "merchantId": 1001,
+  "merchantStatus": "SUSPENDED"
+}
+```
+
+**Response (200) — 키 자체가 무효**
 ```json
 {
   "valid": false,
   "reason": "REVOKED"
 }
 ```
-> `reason`: `NOT_FOUND` | `REVOKED` | `MERCHANT_SUSPENDED`
+> `reason`: `NOT_FOUND` | `REVOKED` (키 자체가 무효인 경우만)
+>
+> **`valid`와 `merchantStatus`는 분리된 관심사다.** `valid`는 "API 키가 진짜인가"(인증), `merchantStatus`는 "가맹점이 거래 가능한 상태인가"(정책)에 답한다. 키가 멀쩡한데 가맹점만 정지된 경우는 `valid=true` + `merchantStatus=SUSPENDED`로 응답한다. **차단 여부는 Gateway가 `merchantStatus`를 보고 판단**한다 (이 API는 사실만 제공). 이렇게 두면 향후 PENDING 같은 상태가 추가돼도 reason을 늘리지 않고 유연하게 대응할 수 있다.
 
 ---
 
@@ -313,14 +325,17 @@ CREATE INDEX idx_api_key_merchant_id ON api_key(merchant_id);
 [merchant-service]
   │ ① 키에서 lookup_id 추출 → 후보 조회
   │ ② 요청 키 SHA-256 → key_hash 비교
-  │ ③ revoked_at NULL 확인
-  │ ④ 소속 merchant status = ACTIVE 확인
+  │ ③ revoked_at NULL 확인 → 키 유효성(valid) 판정
+  │ ④ 소속 merchant status 조회 (막지 않고 그대로 응답에 실음)
   │ ⑤ last_used_at 갱신
   │ ⑥ { valid, merchantId, merchantStatus } 응답
   ▼
-[Gateway] valid=true면 X-Merchant-Id 부착 후 다운스트림 전달
-          valid=false면 401/403 반환
+[Gateway] 판단:
+  - valid=false              → 401 (인증 실패: 키 위조/폐기)
+  - valid=true & ACTIVE      → X-Merchant-Id 부착 후 다운스트림 전달
+  - valid=true & SUSPENDED   → 403 (인증은 됐으나 정지된 가맹점)
 ```
+- 책임 분리: merchant-service는 "키가 유효한가 + 가맹점 상태가 무엇인가"라는 **사실만** 제공한다. 정지 가맹점을 실제로 **막는 판단은 Gateway**가 한다. (인증 vs 정책의 관심사 분리)
 - 트랜잭션: 검증은 읽기 위주. `last_used_at` 갱신은 비핵심이라 별도 처리(실패해도 검증 결과에 영향 없음).
 
 ### 5.3 가맹점 상태 변경

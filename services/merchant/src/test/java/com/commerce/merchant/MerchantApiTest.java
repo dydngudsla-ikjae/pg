@@ -17,7 +17,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
+import org.springframework.web.client.HttpClientErrorException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class MerchantApiTest {
@@ -135,6 +138,30 @@ class MerchantApiTest {
         assertThat(merchantNo).matches("M\\d{8}\\d{3}");
 
         assertThat(data.get("createdAt")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("가맹점 등록 API가 name 누락 시 400을 반환한다")
+    void registerMerchantWithoutNameReturns400() {
+        // given: name 필드 누락
+        String requestBody = """
+                {
+                  "businessNo": "123-45-67890",
+                  "representativeName": "홍길동",
+                  "settlementBank": "088",
+                  "settlementAccount": "1234567890"
+                }
+                """;
+
+        // when & then
+        assertThatThrownBy(() ->
+                restClient.post()
+                        .uri("/v1/merchants")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(requestBody)
+                        .retrieve()
+                        .toEntity(Map.class)
+        ).isInstanceOf(HttpClientErrorException.BadRequest.class);
     }
 
     @Test

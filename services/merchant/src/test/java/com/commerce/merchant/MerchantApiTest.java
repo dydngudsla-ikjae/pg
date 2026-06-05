@@ -189,6 +189,30 @@ class MerchantApiTest {
     }
 
     @Test
+    @DisplayName("가맹점 등록 API가 representativeName 누락 시 400을 반환한다")
+    void registerMerchantWithoutRepresentativeNameReturns400() {
+        // given: representativeName 필드 누락
+        String requestBody = """
+                {
+                  "name": "마이쇼핑몰",
+                  "businessNo": "123-45-67890",
+                  "settlementBank": "088",
+                  "settlementAccount": "1234567890"
+                }
+                """;
+
+        // when & then
+        assertThatThrownBy(() ->
+                restClient.post()
+                        .uri("/v1/merchants")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(requestBody)
+                        .retrieve()
+                        .toEntity(Map.class)
+        ).isInstanceOf(HttpClientErrorException.BadRequest.class);
+    }
+
+    @Test
     @DisplayName("가맹점 등록 API가 merchantNo를 M+yyyyMMdd+일련번호 형식으로 생성한다")
     void registerMerchantGeneratesMerchantNoWithDateAndSequence() {
         // given

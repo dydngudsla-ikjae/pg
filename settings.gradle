@@ -1,0 +1,17 @@
+rootProject.name = 'pg'
+
+def services = [
+    'api-gateway',
+    'payment',
+    'merchant',
+    'virtual-account',
+    'billing',
+    'settlement',
+    'notification',
+    'mock-pg'
+]
+
+services.each { name ->
+    include name
+    project(":$name").projectDir = file("services/$name")
+}

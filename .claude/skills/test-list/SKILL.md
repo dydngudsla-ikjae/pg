@@ -14,7 +14,7 @@ Prepare a list of test scenarios to cover a feature.
 ```
 
 **Parameters:**
-- `policy-file` (required): Path to the policy/spec markdown file under `work/` (e.g., `work/001.member.md`). The output scenario file will be created at the mirrored path under `test/` (e.g., `test/001.member.md`).
+- `policy-file` (required): Path to the policy/spec markdown file under `docs/service/` (e.g., `docs/service/001.merchant.md`). The output scenario file will be created at the mirrored path under `docs/test/` (e.g., `docs/test/001.merchant.md`).
 
 ## Workflow
 
@@ -25,7 +25,7 @@ Prepare a list of test scenarios to cover a feature.
 - Identify the system under test (sut)
 - Identify the behaviors to verify
 - Resolve ambiguities by asking the user
-- Derive the output path by replacing the leading `work/` with `test/` (e.g., `work/001.member.md` → `test/001.member.md`)
+- Derive the output path by replacing the leading `service/` with `test/` (e.g., `service/001.merchant.md` → `test/001.merchant.md`)
 - If the output file already exists and contains a test scenario list:
   - If some scenarios are marked done (`- [x]`), present the list to the user showing completion status and ask how to proceed: **resume** (continue from the first incomplete scenario), **reset** (uncheck all and start over), or **augment** (add missing scenarios to the existing list)
   - If no scenarios are marked done, ask the user whether to **skip** (use the existing list as-is) or **augment** (review and add missing scenarios)
@@ -36,18 +36,14 @@ Write test scenarios following these rules:
 
 - Write one scenario per line as a checklist item (`- [ ]`)
 - Write in Korean, present tense
-- Use a specific Korean subject for each scenario group (e.g., "회원가입 API가", "로그인 API가", "인증 필터가") instead of the generic 'sut'
+- Use a specific Korean subject for each scenario group (e.g., "가맹점 등록 API가", "로그인 API가") instead of the generic 'sut'
 - Write as concisely as possible while preserving meaning
 - Omit filler words and obvious context
-- Prefer short verb phrases (e.g., "로그인 API가 빈 이름을 거부한다" over "로그인 API는 이름이 비어 있는 경우 거부해야 한다")
+- Prefer short verb phrases (e.g., "가맹점 등록 API가 빈 이름을 거부한다" over "가맹점 등록 API는 이름이 비어 있는 경우 거부해야 한다")
 - Order from most important to least important
 - Start with the simplest, most fundamental behavior
 
-### 3. Present for Review
-
-Show the scenario list to the user and ask for feedback. Do NOT write the list to any external system until the user approves.
-
-### 4. Persist the List
+### 3. Persist the List
 
 After user approval, write the scenario list to the output file (`test/` mirrored path):
 
@@ -59,4 +55,5 @@ After user approval, write the scenario list to the output file (`test/` mirrore
 
 - Do NOT write tests or code. Only produce the scenario list.
 - Do NOT proceed to implementation. Stop after persisting the list.
-- All output presented to the user (scenario list, questions, feedback requests) MUST be written in Korean. Scenario content written to the file also follows the rules in Step 2 (Korean, present tense).
+- All output presented to the user MUST be written in Korean.
+- Write the scenario list to the output file immediately without asking for approval.

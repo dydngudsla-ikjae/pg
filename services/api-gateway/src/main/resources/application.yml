@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: payment
+          uri: http://${PAYMENT_HOST:localhost}:8081
+          predicates:
+            - Path=/v1/payments/**
+        - id: merchant
+          uri: http://${MERCHANT_HOST:localhost}:8082
+          predicates:
+            - Path=/v1/merchants/**
+        - id: virtual-account
+          uri: http://${VIRTUAL_ACCOUNT_HOST:localhost}:8083
+          predicates:
+            - Path=/v1/virtual-accounts/**
+        - id: billing
+          uri: http://${BILLING_HOST:localhost}:8084
+          predicates:
+            - Path=/v1/billing/**
+        - id: settlement
+          uri: http://${SETTLEMENT_HOST:localhost}:8085
+          predicates:
+            - Path=/v1/settlements/**
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

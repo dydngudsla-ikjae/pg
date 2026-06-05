@@ -4,36 +4,36 @@ description: Generate or update Swagger (SpringDoc OpenAPI) annotations for Java
 allowed-tools: Read, Grep, Glob
 ---
 
-# Swagger (SpringDoc OpenAPI) 문서 자동 생성 가이드
+# Swagger (SpringDoc OpenAPI) Auto-Documentation Guide
 
-## 작업 순서
-1. 대상 Controller 파일을 읽어 엔드포인트 파악
-2. 관련 Request/Response DTO 파일도 함께 읽기
-3. 아래 규칙에 따라 어노테이션 추가 또는 보완
-4. 기존 어노테이션이 있으면 덮어쓰지 말고 누락된 부분만 보완
+## Workflow
+1. Read the target Controller file to identify endpoints
+2. Also read related Request/Response DTO files
+3. Add or supplement annotations following the rules below
+4. If existing annotations exist, don't overwrite — only fill in missing parts
 
-## 어노테이션 규칙
+## Annotation Rules
 
-### Controller 클래스
+### Controller Class
 ```java
-@Tag(name = "주문", description = "주문 생성, 조회, 취소 API")
+@Tag(name = "Order", description = "Order creation, retrieval, and cancellation API")
 @RestController
 public class OrderController { }
 ```
 
-### 각 엔드포인트
+### Each Endpoint
 ```java
 @Operation(
-    summary = "주문 생성",
-    description = "상품과 수량을 받아 주문을 생성합니다. 재고가 부족하면 400을 반환합니다."
+    summary = "Create order",
+    description = "Creates an order given a product and quantity. Returns 400 if stock is insufficient."
 )
 @ApiResponses({
-    @ApiResponse(responseCode = "201", description = "주문 생성 성공",
+    @ApiResponse(responseCode = "201", description = "Order created successfully",
         content = @Content(schema = @Schema(implementation = OrderResponse.class))),
-    @ApiResponse(responseCode = "400", description = "재고 부족 또는 잘못된 요청",
+    @ApiResponse(responseCode = "400", description = "Insufficient stock or invalid request",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(responseCode = "401", description = "인증 실패"),
-    @ApiResponse(responseCode = "500", description = "서버 오류")
+    @ApiResponse(responseCode = "401", description = "Authentication failed"),
+    @ApiResponse(responseCode = "500", description = "Server error")
 })
 @PostMapping("/orders")
 public ResponseEntity<OrderResponse> createOrder(@RequestBody @Valid OrderRequest request) { }
@@ -41,30 +41,30 @@ public ResponseEntity<OrderResponse> createOrder(@RequestBody @Valid OrderReques
 
 ### Path Variable / Request Param
 ```java
-@Parameter(description = "주문 ID", example = "1001")
+@Parameter(description = "Order ID", example = "1001")
 @PathVariable Long orderId;
 ```
 
-### DTO 필드
+### DTO Fields
 ```java
 public class OrderRequest {
-    @Schema(description = "상품 ID", example = "42")
+    @Schema(description = "Product ID", example = "42")
     private Long productId;
 
-    @Schema(description = "주문 수량", example = "3", minimum = "1")
+    @Schema(description = "Order quantity", example = "3", minimum = "1")
     private int quantity;
 }
 ```
 
-## 규칙
-- summary는 15자 이내로 간결하게
-- description은 비즈니스 맥락과 주요 예외 상황을 포함
-- example 값은 실제로 유효한 값으로 작성
-- 인증이 필요한 엔드포인트는 401 응답 반드시 포함
-- 에러 응답은 프로젝트의 공통 ErrorResponse 클래스를 사용
-- hidden = true는 사용 금지 (문서화 제외가 필요하면 주석으로 이유 명시)
+## Rules
+- Keep summary concise (within 15 characters)
+- description should include business context and key exception scenarios
+- Use actually valid values for examples
+- Always include 401 response for endpoints requiring authentication
+- Use the project's common ErrorResponse class for error responses
+- Do not use hidden = true (if documentation exclusion is needed, add a comment with the reason)
 
-## 주의사항
-- 기존 비즈니스 로직 코드는 절대 수정하지 않음
-- 어노테이션 import 문 누락 없이 추가할 것
-- Controller, DTO 모두 수정이 필요한 경우 함께 처리
+## Important
+- Never modify existing business logic code
+- Add annotation imports without omission
+- If both Controller and DTO need changes, handle them together

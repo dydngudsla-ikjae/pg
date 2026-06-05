@@ -1,6 +1,7 @@
 package com.commerce.merchant.controller;
 
 import com.commerce.merchant.dto.ApiResponse;
+import com.commerce.merchant.dto.MerchantGetResponse;
 import com.commerce.merchant.dto.MerchantRegisterRequest;
 import com.commerce.merchant.dto.MerchantRegisterResponse;
 import com.commerce.merchant.service.MerchantService;
@@ -21,5 +22,10 @@ public class MerchantController {
     public ApiResponse<MerchantRegisterResponse> register(
             @RequestBody @Valid MerchantRegisterRequest request) {
         return ApiResponse.success(merchantService.register(request));
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<MerchantGetResponse> getMerchant(@PathVariable Long id) {
+        return ApiResponse.success(merchantService.getById(id));
     }
 }

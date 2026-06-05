@@ -1,8 +1,10 @@
 package com.commerce.merchant.service;
 
 import com.commerce.merchant.domain.Merchant;
+import com.commerce.merchant.dto.MerchantGetResponse;
 import com.commerce.merchant.dto.MerchantRegisterRequest;
 import com.commerce.merchant.dto.MerchantRegisterResponse;
+import com.commerce.merchant.exception.MerchantNotFoundException;
 import com.commerce.merchant.repository.MerchantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,23 @@ public class MerchantService {
                 .name(saved.getName())
                 .status(saved.getStatus())
                 .createdAt(saved.getCreatedAt())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public MerchantGetResponse getById(Long id) {
+        Merchant merchant = merchantRepository.findById(id)
+                .orElseThrow(() -> new MerchantNotFoundException(id));
+
+        return MerchantGetResponse.builder()
+                .merchantId(merchant.getId())
+                .merchantNo(merchant.getMerchantNo())
+                .name(merchant.getName())
+                .businessNo(merchant.getBusinessNo())
+                .representativeName(merchant.getRepresentativeName())
+                .status(merchant.getStatus())
+                .webhookUrl(merchant.getWebhookUrl())
+                .createdAt(merchant.getCreatedAt())
                 .build();
     }
 

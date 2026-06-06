@@ -706,6 +706,36 @@ class MerchantApiTest {
         assertThat(body.get("merchantStatus")).isEqualTo("ACTIVE");
     }
 
+    @Test
+    @DisplayName("검증 API가 유효한 키 + SUSPENDED 가맹점 요청 시 valid=true, merchantStatus=SUSPENDED를 반환한다")
+    void verifyApiWithValidKeyAndSuspendedMerchantReturnsValidTrueWithSuspendedStatus() {
+        // given
+        Number merchantId = registerMerchant();
+        String plainKey = issueApiKeyGetPlainKey(merchantId, "live");
+
+        // 가맹점 상태를 SUSPENDED로 변경
+        restClient.patch()
+                .uri("/v1/merchants/" + merchantId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("status", "SUSPENDED"))
+                .retrieve()
+                .toBodilessEntity();
+
+        // when
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/internal/api-keys/verify")
+                .header("X-Internal-Service", "payment-service")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("apiKey", plainKey))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        Map<?, ?> body = response.getBody();
+        assertThat(body.get("valid")).isEqualTo(true);
+        assertThat(body.get("merchantStatus")).isEqualTo("SUSPENDED");
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

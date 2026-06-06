@@ -459,6 +459,30 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.BadRequest.class);
     }
 
+    @Test
+    @DisplayName("API 키 폐기 API가 keyId와 revokedAt을 포함하여 200을 반환한다")
+    void revokeApiKeyReturns200WithKeyIdAndRevokedAt() {
+        // given: 가맹점 등록 후 API 키 발급
+        Number merchantId = registerMerchant();
+        Number keyId = issueApiKey(merchantId, "live");
+
+        // when
+        ResponseEntity<Map> response = restClient.delete()
+                .uri("/v1/merchants/" + merchantId + "/api-keys/" + keyId)
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        Map<?, ?> body = response.getBody();
+        assertThat(body.get("success")).isEqualTo(true);
+
+        Map<?, ?> data = (Map<?, ?>) body.get("data");
+        assertThat(data.get("keyId")).isNotNull();
+        assertThat(data.get("revokedAt")).isNotNull();
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """
@@ -478,5 +502,29 @@ class MerchantApiTest {
                 .toEntity(Map.class);
         Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
         return (Number) data.get("merchantId");
+    }
+
+    // 헬퍼 메서드: API 키 발급 후 keyId 반환
+    private Number issueApiKey(Number merchantId, String env) {
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", env))
+                .retrieve()
+                .toEntity(Map.class);
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        return (Number) data.get("keyId");
+    }
+
+    // 헬퍼 메서드: API 키 발급 후 plainKey 반환
+    private String issueApiKeyGetPlainKey(Number merchantId, String env) {
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", env))
+                .retrieve()
+                .toEntity(Map.class);
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        return (String) data.get("plainKey");
     }
 }

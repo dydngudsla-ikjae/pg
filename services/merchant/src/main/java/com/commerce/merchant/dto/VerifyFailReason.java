@@ -1,4 +1,4 @@
-package com.commerce.merchant.domain;
+package com.commerce.merchant.dto;
 
 public enum VerifyFailReason {
     REVOKED,

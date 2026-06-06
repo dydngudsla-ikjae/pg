@@ -1,6 +1,6 @@
 package com.commerce.merchant.dto;
 
-import com.commerce.merchant.domain.VerifyFailReason;
+import com.commerce.merchant.dto.VerifyFailReason;
 import lombok.Builder;
 import lombok.Getter;
 

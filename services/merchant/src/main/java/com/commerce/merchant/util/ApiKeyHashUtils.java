@@ -15,7 +15,7 @@ public class ApiKeyHashUtils {
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("SHA-256 is required by Java spec", e);
         }
     }
 }

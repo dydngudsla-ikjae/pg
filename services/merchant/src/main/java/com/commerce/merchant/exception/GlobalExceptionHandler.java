@@ -35,6 +35,12 @@ public class GlobalExceptionHandler {
         return ApiResponse.error("VALIDATION_ERROR");
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException e) {
+        return ApiResponse.error(e.getMessage());
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleMessageNotReadable(HttpMessageNotReadableException e) {

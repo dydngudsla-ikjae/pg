@@ -3,7 +3,7 @@ package com.commerce.merchant.service;
 import com.commerce.merchant.domain.ApiKeyEnv;
 import com.commerce.merchant.domain.Merchant;
 import com.commerce.merchant.domain.MerchantApiKey;
-import com.commerce.merchant.domain.VerifyFailReason;
+import com.commerce.merchant.dto.VerifyFailReason;
 import com.commerce.merchant.dto.ApiKeyIssueResponse;
 import com.commerce.merchant.dto.ApiKeyRevokeResponse;
 import com.commerce.merchant.dto.ApiKeyVerifyResponse;

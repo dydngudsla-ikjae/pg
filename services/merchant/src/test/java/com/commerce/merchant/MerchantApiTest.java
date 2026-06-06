@@ -416,6 +416,19 @@ class MerchantApiTest {
         assertThat(saved.getKeyHash()).isNotEqualTo(plainKey);
     }
 
+    @Test
+    @DisplayName("API 키 발급 API가 존재하지 않는 가맹점 id로 요청 시 404를 반환한다")
+    void issueApiKeyWithNonExistentMerchantReturns404() {
+        assertThatThrownBy(() ->
+                restClient.post()
+                        .uri("/v1/merchants/99999/api-keys")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("env", "live"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.NotFound.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

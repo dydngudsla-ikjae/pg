@@ -308,4 +308,50 @@ class MerchantApiTest {
                         .toEntity(Map.class)
         ).isInstanceOf(HttpClientErrorException.NotFound.class);
     }
+
+    @Test
+    @DisplayName("API 키 발급 API가 env=live 요청 시 mk_live_ 형식의 원문 키와 함께 201을 반환한다")
+    void issueApiKeyWithLiveEnvReturns201WithMkLivePrefix() {
+        // given: 가맹점 등록
+        Number merchantId = registerMerchant();
+
+        // when
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", "live"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        Map<?, ?> body = response.getBody();
+        assertThat(body.get("success")).isEqualTo(true);
+
+        Map<?, ?> data = (Map<?, ?>) body.get("data");
+        assertThat(data.get("keyId")).isNotNull();
+        assertThat((String) data.get("plainKey")).startsWith("mk_live_");
+    }
+
+    // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
+    private Number registerMerchant() {
+        String body = """
+                {
+                  "name": "테스트몰",
+                  "businessNo": "123-45-67890",
+                  "representativeName": "홍길동",
+                  "settlementBank": "088",
+                  "settlementAccount": "1234567890"
+                }
+                """;
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/v1/merchants")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toEntity(Map.class);
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        return (Number) data.get("merchantId");
+    }
 }

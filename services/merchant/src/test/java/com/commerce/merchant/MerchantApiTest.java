@@ -429,6 +429,21 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.NotFound.class);
     }
 
+    @Test
+    @DisplayName("API 키 발급 API가 유효하지 않은 env 값으로 요청 시 400을 반환한다")
+    void issueApiKeyWithInvalidEnvReturns400() {
+        Number merchantId = registerMerchant();
+
+        assertThatThrownBy(() ->
+                restClient.post()
+                        .uri("/v1/merchants/" + merchantId + "/api-keys")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("env", "invalid"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.BadRequest.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

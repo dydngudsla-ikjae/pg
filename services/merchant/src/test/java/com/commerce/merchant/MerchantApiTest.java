@@ -637,6 +637,21 @@ class MerchantApiTest {
         assertThat(activateResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
+    @Test
+    @DisplayName("가맹점 상태 변경 API가 유효하지 않은 status 값으로 요청 시 400을 반환한다")
+    void updateMerchantStatusWithInvalidStatusReturns400() {
+        Number merchantId = registerMerchant();
+
+        assertThatThrownBy(() ->
+                restClient.patch()
+                        .uri("/v1/merchants/" + merchantId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("status", "INVALID"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.BadRequest.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

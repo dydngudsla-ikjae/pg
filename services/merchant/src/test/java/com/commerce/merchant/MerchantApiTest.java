@@ -534,6 +534,34 @@ class MerchantApiTest {
         assertThat(verifyBody.get("reason")).isEqualTo("REVOKED");
     }
 
+    @Test
+    @DisplayName("웹훅 URL 수정 API가 URL을 저장하고 200을 반환한다")
+    void updateWebhookUrlReturns200AndSavesUrl() {
+        // given
+        Number merchantId = registerMerchant();
+        String webhookUrl = "https://example.com/webhook";
+
+        // when
+        ResponseEntity<Map> response = restClient.put()
+                .uri("/v1/merchants/" + merchantId + "/webhook")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("webhookUrl", webhookUrl))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // GET으로 webhookUrl 확인
+        ResponseEntity<Map> getResponse = restClient.get()
+                .uri("/v1/merchants/" + merchantId)
+                .retrieve()
+                .toEntity(Map.class);
+
+        Map<?, ?> data = (Map<?, ?>) getResponse.getBody().get("data");
+        assertThat(data.get("webhookUrl")).isEqualTo(webhookUrl);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

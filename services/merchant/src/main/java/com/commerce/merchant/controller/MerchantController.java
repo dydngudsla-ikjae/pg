@@ -7,6 +7,8 @@ import com.commerce.merchant.dto.ApiResponse;
 import com.commerce.merchant.dto.MerchantGetResponse;
 import com.commerce.merchant.dto.MerchantRegisterRequest;
 import com.commerce.merchant.dto.MerchantRegisterResponse;
+import com.commerce.merchant.dto.MerchantStatusUpdateRequest;
+import com.commerce.merchant.dto.WebhookUpdateRequest;
 import com.commerce.merchant.service.ApiKeyService;
 import com.commerce.merchant.service.MerchantService;
 import jakarta.validation.Valid;
@@ -47,5 +49,19 @@ public class MerchantController {
             @PathVariable Long id,
             @PathVariable Long keyId) {
         return ApiResponse.success(apiKeyService.revokeKey(id, keyId));
+    }
+
+    @PutMapping("/{id}/webhook")
+    public ApiResponse<MerchantGetResponse> updateWebhook(
+            @PathVariable Long id,
+            @RequestBody @Valid WebhookUpdateRequest request) {
+        return ApiResponse.success(merchantService.updateWebhookUrl(id, request.getWebhookUrl()));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ApiResponse<MerchantGetResponse> updateStatus(
+            @PathVariable Long id,
+            @RequestBody @Valid MerchantStatusUpdateRequest request) {
+        return ApiResponse.success(merchantService.updateStatus(id, request.getStatus()));
     }
 }

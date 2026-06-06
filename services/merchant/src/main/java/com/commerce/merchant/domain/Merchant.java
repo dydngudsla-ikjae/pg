@@ -63,4 +63,14 @@ public class Merchant {
         this.createdAt = OffsetDateTime.now();
         this.updatedAt = OffsetDateTime.now();
     }
+
+    public void updateWebhookUrl(String webhookUrl) {
+        this.webhookUrl = webhookUrl;
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    public void updateStatus(MerchantStatus status) {
+        this.status = status;
+        this.updatedAt = OffsetDateTime.now();
+    }
 }

@@ -33,6 +33,12 @@ public class GlobalExceptionHandler {
         return ApiResponse.error("INVALID_REQUEST", e.getMessage());
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleIllegalState(IllegalStateException e) {
+        return ApiResponse.error("INVALID_PAYMENT_STATE", e.getMessage());
+    }
+
     @ExceptionHandler(PaymentNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleNotFound(PaymentNotFoundException e) {

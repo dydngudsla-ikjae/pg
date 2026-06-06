@@ -665,6 +665,24 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.NotFound.class);
     }
 
+    @Test
+    @DisplayName("검증 API가 X-Internal-Service 헤더 없이 호출되면 401 또는 403을 반환한다")
+    void verifyApiWithoutInternalServiceHeaderReturns401Or403() {
+        assertThatThrownBy(() ->
+                restClient.post()
+                        .uri("/internal/api-keys/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("apiKey", "some-key"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).satisfies(ex -> {
+            assertThat(ex).isInstanceOfAny(
+                    HttpClientErrorException.Unauthorized.class,
+                    HttpClientErrorException.Forbidden.class
+            );
+        });
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

@@ -3,6 +3,7 @@ package com.commerce.merchant.service;
 import com.commerce.merchant.domain.ApiKeyEnv;
 import com.commerce.merchant.domain.Merchant;
 import com.commerce.merchant.domain.MerchantApiKey;
+import com.commerce.merchant.domain.VerifyFailReason;
 import com.commerce.merchant.dto.ApiKeyIssueResponse;
 import com.commerce.merchant.dto.ApiKeyRevokeResponse;
 import com.commerce.merchant.dto.ApiKeyVerifyResponse;
@@ -10,14 +11,11 @@ import com.commerce.merchant.exception.ApiKeyNotFoundException;
 import com.commerce.merchant.exception.MerchantNotFoundException;
 import com.commerce.merchant.repository.MerchantApiKeyRepository;
 import com.commerce.merchant.repository.MerchantRepository;
+import com.commerce.merchant.util.ApiKeyHashUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
@@ -28,20 +26,13 @@ public class ApiKeyService {
     private final MerchantRepository merchantRepository;
 
     @Transactional
-    public ApiKeyIssueResponse issueKey(Long merchantId, String envStr) {
+    public ApiKeyIssueResponse issueKey(Long merchantId, ApiKeyEnv env) {
         merchantRepository.findById(merchantId)
                 .orElseThrow(() -> new MerchantNotFoundException(merchantId));
 
-        ApiKeyEnv env;
-        try {
-            env = ApiKeyEnv.valueOf(envStr.toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Invalid env value: " + envStr);
-        }
         String prefix = env == ApiKeyEnv.LIVE ? "mk_live_" : "mk_test_";
         String plainKey = prefix + UUID.randomUUID().toString().replace("-", "");
-
-        String keyHash = sha256(plainKey);
+        String keyHash = ApiKeyHashUtils.sha256(plainKey);
 
         MerchantApiKey apiKey = MerchantApiKey.builder()
                 .merchantId(merchantId)
@@ -61,7 +52,7 @@ public class ApiKeyService {
 
     @Transactional
     public ApiKeyRevokeResponse revokeKey(Long merchantId, Long keyId) {
-        MerchantApiKey key = merchantApiKeyRepository.findById(keyId)
+        MerchantApiKey key = merchantApiKeyRepository.findByIdAndMerchantId(keyId, merchantId)
                 .orElseThrow(() -> new ApiKeyNotFoundException(keyId));
         key.revoke();
         return ApiKeyRevokeResponse.builder()
@@ -72,14 +63,14 @@ public class ApiKeyService {
 
     @Transactional(readOnly = true)
     public ApiKeyVerifyResponse verifyKey(String apiKey) {
-        String keyHash = sha256(apiKey);
+        String keyHash = ApiKeyHashUtils.sha256(apiKey);
 
         return merchantApiKeyRepository.findByKeyHash(keyHash)
                 .map(key -> {
                     if (key.isRevoked()) {
                         return ApiKeyVerifyResponse.builder()
                                 .valid(false)
-                                .reason("REVOKED")
+                                .reason(VerifyFailReason.REVOKED)
                                 .build();
                     }
                     Merchant merchant = merchantRepository.findById(key.getMerchantId())
@@ -92,17 +83,7 @@ public class ApiKeyService {
                 })
                 .orElse(ApiKeyVerifyResponse.builder()
                         .valid(false)
-                        .reason("NOT_FOUND")
+                        .reason(VerifyFailReason.NOT_FOUND)
                         .build());
-    }
-
-    public static String sha256(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
     }
 }

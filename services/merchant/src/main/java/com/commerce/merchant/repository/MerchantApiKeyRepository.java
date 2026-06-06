@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface MerchantApiKeyRepository extends JpaRepository<MerchantApiKey, Long> {
     Optional<MerchantApiKey> findByKeyHash(String keyHash);
+    Optional<MerchantApiKey> findByIdAndMerchantId(Long id, Long merchantId);
 }

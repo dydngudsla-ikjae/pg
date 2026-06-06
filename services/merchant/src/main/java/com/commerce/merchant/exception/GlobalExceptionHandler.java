@@ -2,6 +2,7 @@ package com.commerce.merchant.exception;
 
 import com.commerce.merchant.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -22,9 +23,9 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(e.getMessage());
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiResponse<Void> handleIllegalArgument(IllegalArgumentException e) {
+    @ExceptionHandler(InternalAuthException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<Void> handleInternalAuth(InternalAuthException e) {
         return ApiResponse.error(e.getMessage());
     }
 
@@ -32,5 +33,11 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleValidation(MethodArgumentNotValidException e) {
         return ApiResponse.error("VALIDATION_ERROR");
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleMessageNotReadable(HttpMessageNotReadableException e) {
+        return ApiResponse.error("INVALID_REQUEST_BODY");
     }
 }

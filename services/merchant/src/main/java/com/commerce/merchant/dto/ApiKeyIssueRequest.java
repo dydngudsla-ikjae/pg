@@ -1,6 +1,7 @@
 package com.commerce.merchant.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import com.commerce.merchant.domain.ApiKeyEnv;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ApiKeyIssueRequest {
 
-    @NotBlank
-    private String env;
+    @NotNull
+    private ApiKeyEnv env;
 }

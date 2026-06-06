@@ -49,17 +49,7 @@ public class MerchantService {
     public MerchantGetResponse getById(Long id) {
         Merchant merchant = merchantRepository.findById(id)
                 .orElseThrow(() -> new MerchantNotFoundException(id));
-
-        return MerchantGetResponse.builder()
-                .merchantId(merchant.getId())
-                .merchantNo(merchant.getMerchantNo())
-                .name(merchant.getName())
-                .businessNo(merchant.getBusinessNo())
-                .representativeName(merchant.getRepresentativeName())
-                .status(merchant.getStatus())
-                .webhookUrl(merchant.getWebhookUrl())
-                .createdAt(merchant.getCreatedAt())
-                .build();
+        return toResponse(merchant);
     }
 
     @Transactional
@@ -67,29 +57,18 @@ public class MerchantService {
         Merchant merchant = merchantRepository.findById(id)
                 .orElseThrow(() -> new MerchantNotFoundException(id));
         merchant.updateWebhookUrl(webhookUrl);
-        return MerchantGetResponse.builder()
-                .merchantId(merchant.getId())
-                .merchantNo(merchant.getMerchantNo())
-                .name(merchant.getName())
-                .businessNo(merchant.getBusinessNo())
-                .representativeName(merchant.getRepresentativeName())
-                .status(merchant.getStatus())
-                .webhookUrl(merchant.getWebhookUrl())
-                .createdAt(merchant.getCreatedAt())
-                .build();
+        return toResponse(merchant);
     }
 
     @Transactional
-    public MerchantGetResponse updateStatus(Long id, String statusStr) {
+    public MerchantGetResponse updateStatus(Long id, MerchantStatus status) {
         Merchant merchant = merchantRepository.findById(id)
                 .orElseThrow(() -> new MerchantNotFoundException(id));
-        MerchantStatus status;
-        try {
-            status = MerchantStatus.valueOf(statusStr);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid status value: " + statusStr);
-        }
         merchant.updateStatus(status);
+        return toResponse(merchant);
+    }
+
+    private MerchantGetResponse toResponse(Merchant merchant) {
         return MerchantGetResponse.builder()
                 .merchantId(merchant.getId())
                 .merchantNo(merchant.getMerchantNo())

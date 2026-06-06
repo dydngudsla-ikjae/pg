@@ -483,6 +483,19 @@ class MerchantApiTest {
         assertThat(data.get("revokedAt")).isNotNull();
     }
 
+    @Test
+    @DisplayName("API 키 폐기 API가 존재하지 않는 keyId로 요청 시 404를 반환한다")
+    void revokeApiKeyWithNonExistentKeyIdReturns404() {
+        Number merchantId = registerMerchant();
+
+        assertThatThrownBy(() ->
+                restClient.delete()
+                        .uri("/v1/merchants/" + merchantId + "/api-keys/99999")
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.NotFound.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

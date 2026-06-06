@@ -297,4 +297,15 @@ class MerchantApiTest {
         assertThat(data.get("status")).isEqualTo(MerchantStatus.ACTIVE.name());
         assertThat(data.get("createdAt")).isNotNull();
     }
+
+    @Test
+    @DisplayName("가맹점 조회 API가 존재하지 않는 id로 요청 시 404를 반환한다")
+    void getMerchantWithNonExistentIdReturns404() {
+        assertThatThrownBy(() ->
+                restClient.get()
+                        .uri("/v1/merchants/99999")
+                        .retrieve()
+                        .toEntity(Map.class)
+        ).isInstanceOf(HttpClientErrorException.NotFound.class);
+    }
 }

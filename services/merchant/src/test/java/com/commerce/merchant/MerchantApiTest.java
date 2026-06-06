@@ -334,6 +334,28 @@ class MerchantApiTest {
         assertThat((String) data.get("plainKey")).startsWith("mk_live_");
     }
 
+    @Test
+    @DisplayName("API 키 발급 API가 env=test 요청 시 mk_test_ 형식의 원문 키와 함께 201을 반환한다")
+    void issueApiKeyWithTestEnvReturns201WithMkTestPrefix() {
+        // given
+        Number merchantId = registerMerchant();
+
+        // when
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", "test"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        assertThat(data.get("keyId")).isNotNull();
+        assertThat((String) data.get("plainKey")).startsWith("mk_test_");
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

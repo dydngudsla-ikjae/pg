@@ -496,6 +496,44 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.NotFound.class);
     }
 
+    @Test
+    @DisplayName("API 키 폐기 후 해당 키로 검증 API를 호출하면 valid=false, reason=REVOKED를 반환한다")
+    void afterRevokingApiKeyVerifyReturnsRevokedReason() {
+        // given: 가맹점 등록 후 API 키 한 번 발급
+        Number merchantId = registerMerchant();
+
+        ResponseEntity<Map> issueResponse = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", "live"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        Map<?, ?> issueData = (Map<?, ?>) issueResponse.getBody().get("data");
+        String plainKey = (String) issueData.get("plainKey");
+        Number keyId = (Number) issueData.get("keyId");
+
+        // 폐기
+        restClient.delete()
+                .uri("/v1/merchants/" + merchantId + "/api-keys/" + keyId)
+                .retrieve()
+                .toBodilessEntity();
+
+        // when: 폐기된 키로 검증
+        ResponseEntity<Map> verifyResponse = restClient.post()
+                .uri("/internal/api-keys/verify")
+                .header("X-Internal-Service", "payment-service")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("apiKey", plainKey))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        Map<?, ?> verifyBody = verifyResponse.getBody();
+        assertThat(verifyBody.get("valid")).isEqualTo(false);
+        assertThat(verifyBody.get("reason")).isEqualTo("REVOKED");
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

@@ -1,9 +1,11 @@
 package com.commerce.merchant.service;
 
 import com.commerce.merchant.domain.ApiKeyEnv;
+import com.commerce.merchant.domain.Merchant;
 import com.commerce.merchant.domain.MerchantApiKey;
 import com.commerce.merchant.dto.ApiKeyIssueResponse;
 import com.commerce.merchant.dto.ApiKeyRevokeResponse;
+import com.commerce.merchant.dto.ApiKeyVerifyResponse;
 import com.commerce.merchant.exception.ApiKeyNotFoundException;
 import com.commerce.merchant.exception.MerchantNotFoundException;
 import com.commerce.merchant.repository.MerchantApiKeyRepository;
@@ -66,6 +68,32 @@ public class ApiKeyService {
                 .keyId(key.getId())
                 .revokedAt(key.getRevokedAt())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public ApiKeyVerifyResponse verifyKey(String apiKey) {
+        String keyHash = sha256(apiKey);
+
+        return merchantApiKeyRepository.findByKeyHash(keyHash)
+                .map(key -> {
+                    if (key.isRevoked()) {
+                        return ApiKeyVerifyResponse.builder()
+                                .valid(false)
+                                .reason("REVOKED")
+                                .build();
+                    }
+                    Merchant merchant = merchantRepository.findById(key.getMerchantId())
+                            .orElseThrow(() -> new MerchantNotFoundException(key.getMerchantId()));
+                    return ApiKeyVerifyResponse.builder()
+                            .valid(true)
+                            .merchantId(merchant.getId())
+                            .merchantStatus(merchant.getStatus().name())
+                            .build();
+                })
+                .orElse(ApiKeyVerifyResponse.builder()
+                        .valid(false)
+                        .reason("NOT_FOUND")
+                        .build());
     }
 
     public static String sha256(String input) {

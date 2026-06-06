@@ -1,11 +1,16 @@
 package com.commerce.payment.service;
 
 import com.commerce.payment.client.PgClient;
+import com.commerce.payment.domain.OutboxEvent;
 import com.commerce.payment.domain.Payment;
+import com.commerce.payment.domain.PaymentStatus;
 import com.commerce.payment.dto.request.PaymentApproveRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
+import com.commerce.payment.repository.OutboxEventRepository;
 import com.commerce.payment.repository.PaymentRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +22,9 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final OutboxEventRepository outboxEventRepository;
     private final PgClient pgClient;
+    private final ObjectMapper objectMapper;
 
     public PaymentApproveResponse approve(Long merchantId, String idempotencyKey, PaymentApproveRequest request) {
         String paymentKey = "pay_" + UUID.randomUUID().toString().replace("-", "");
@@ -45,7 +52,23 @@ public class PaymentService {
         }
 
         paymentRepository.save(payment);
+
+        if (payment.getStatus() == PaymentStatus.PAID) {
+            saveOutboxEvent("payment.paid", payment);
+        }
+
         return toResponse(payment);
+    }
+
+    @SneakyThrows
+    private void saveOutboxEvent(String eventType, Payment payment) {
+        String payload = objectMapper.writeValueAsString(toResponse(payment));
+        outboxEventRepository.save(OutboxEvent.builder()
+                .aggregateType("payment")
+                .aggregateId(payment.getPaymentKey())
+                .eventType(eventType)
+                .payload(payload)
+                .build());
     }
 
     private PaymentApproveResponse toResponse(Payment payment) {

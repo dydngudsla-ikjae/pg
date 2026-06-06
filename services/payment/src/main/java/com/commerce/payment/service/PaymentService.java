@@ -3,10 +3,11 @@ package com.commerce.payment.service;
 import com.commerce.payment.client.PgClient;
 import com.commerce.payment.domain.*;
 import com.commerce.payment.dto.request.PaymentApproveRequest;
+import com.commerce.payment.dto.request.PaymentCancelRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
-import com.commerce.payment.exception.DuplicateOrderException;
-import com.commerce.payment.exception.IdempotencyConflictException;
-import com.commerce.payment.exception.InvalidPaymentStateException;
+import com.commerce.payment.dto.response.PaymentCancelResponse;
+import com.commerce.payment.exception.*;
+import com.commerce.payment.repository.CancelRepository;
 import com.commerce.payment.repository.IdempotencyKeyRepository;
 import com.commerce.payment.repository.OutboxEventRepository;
 import com.commerce.payment.repository.PaymentRepository;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final CancelRepository cancelRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final PgClient pgClient;
@@ -95,7 +97,7 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         if (payment.getStatus() == PaymentStatus.PAID) {
-            saveOutboxEvent("payment.paid", payment);
+            saveOutboxEvent("payment.paid", payment.getPaymentKey(), toResponse(payment));
         }
 
         var response = toResponse(payment);
@@ -106,13 +108,86 @@ public class PaymentService {
     }
 
     @SneakyThrows
-    private void saveOutboxEvent(String eventType, Payment payment) {
-        String payload = objectMapper.writeValueAsString(toResponse(payment));
+    public PaymentCancelResponse cancel(Long merchantId, String paymentKey, String idempotencyKey, PaymentCancelRequest request) {
+        String endpoint = "/v1/payments/" + paymentKey + "/cancel";
+        String requestHash = computeHash(request);
+
+        var existing = idempotencyKeyRepository
+                .findByMerchantIdAndHttpMethodAndEndpointAndIdempotencyKey(
+                        merchantId, "POST", endpoint, idempotencyKey);
+
+        if (existing.isPresent()) {
+            var idem = existing.get();
+            if (idem.getStatus() == IdempotencyStatus.PROCESSING) {
+                throw new IdempotencyConflictException();
+            }
+            if (!requestHash.equals(idem.getRequestHash())) {
+                throw new InvalidPaymentStateException("동일 멱등키에 다른 요청 본문이 사용되었습니다.");
+            }
+            return objectMapper.readValue(idem.getResponseBody(), PaymentCancelResponse.class);
+        }
+
+        var payment = paymentRepository.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new PaymentNotFoundException("결제를 찾을 수 없습니다: " + paymentKey));
+
+        if (request.merchantCancelId() != null &&
+                cancelRepository.existsByMerchantIdAndMerchantCancelId(merchantId, request.merchantCancelId())) {
+            throw new InvalidPaymentStateException("이미 사용된 merchantCancelId입니다: " + request.merchantCancelId());
+        }
+
+        var idem = IdempotencyKey.builder()
+                .idempotencyKey(idempotencyKey)
+                .merchantId(merchantId)
+                .httpMethod("POST")
+                .endpoint(endpoint)
+                .requestHash(requestHash)
+                .build();
+        idempotencyKeyRepository.save(idem);
+
+        payment.cancel(request.cancelAmount());
+        paymentRepository.save(payment);
+
+        var pgResult = pgClient.cancel(payment.getPgTid(), request.cancelAmount(), request.reason());
+        String pgCancelTid = pgResult instanceof PgClient.PgCancelResult.Success s ? s.pgCancelTid() : null;
+
+        String cancelKey = "cancel_" + UUID.randomUUID().toString().replace("-", "");
+        cancelRepository.save(Cancel.builder()
+                .paymentId(payment.getId())
+                .merchantId(merchantId)
+                .cancelKey(cancelKey)
+                .merchantCancelId(request.merchantCancelId())
+                .cancelAmount(request.cancelAmount())
+                .remainAmount(payment.remainAmount())
+                .reason(request.reason())
+                .pgCancelTid(pgCancelTid)
+                .build());
+
+        saveOutboxEvent("payment.cancelled", payment.getPaymentKey(), toCancelResponse(payment));
+
+        var response = toCancelResponse(payment);
+        idem.complete(payment.getId(), objectMapper.writeValueAsString(response));
+        idempotencyKeyRepository.save(idem);
+
+        return response;
+    }
+
+    private PaymentCancelResponse toCancelResponse(Payment payment) {
+        return new PaymentCancelResponse(
+                payment.getPaymentKey(),
+                payment.getStatus().name(),
+                payment.getAmount(),
+                payment.getCancelledAmount(),
+                payment.remainAmount()
+        );
+    }
+
+    @SneakyThrows
+    private void saveOutboxEvent(String eventType, String aggregateId, Object payload) {
         outboxEventRepository.save(OutboxEvent.builder()
                 .aggregateType("payment")
-                .aggregateId(payment.getPaymentKey())
+                .aggregateId(aggregateId)
                 .eventType(eventType)
-                .payload(payload)
+                .payload(objectMapper.writeValueAsString(payload))
                 .build());
     }
 

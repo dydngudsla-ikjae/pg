@@ -12,4 +12,5 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     testRuntimeOnly 'com.h2database:h2'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.wiremock:wiremock:3.9.2'
 }

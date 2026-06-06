@@ -577,6 +577,19 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.BadRequest.class);
     }
 
+    @Test
+    @DisplayName("웹훅 URL 수정 API가 존재하지 않는 가맹점 id로 요청 시 404를 반환한다")
+    void updateWebhookUrlWithNonExistentMerchantReturns404() {
+        assertThatThrownBy(() ->
+                restClient.put()
+                        .uri("/v1/merchants/99999/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("webhookUrl", "https://example.com/hook"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.NotFound.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

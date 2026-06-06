@@ -211,6 +211,26 @@ public class PaymentService {
         return sb.toString();
     }
 
+    public void verify(String paymentKey) {
+        var payment = paymentRepository.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new PaymentNotFoundException("결제를 찾을 수 없습니다: " + paymentKey));
+
+        if (payment.getStatus() != PaymentStatus.UNKNOWN && payment.getStatus() != PaymentStatus.READY) {
+            return;
+        }
+
+        var pgResult = pgClient.verify(payment.getPgTid() != null ? payment.getPgTid() : paymentKey);
+
+        PaymentStatus before = payment.getStatus();
+        if ("PAID".equals(pgResult.status())) {
+            payment.approve(pgResult.pgTid(), pgResult.cardCompany(), pgResult.cardLast4(), pgResult.maskedCardNumber());
+            saveOutboxEvent("payment.paid", payment.getPaymentKey(), toResponse(payment));
+        } else {
+            payment.fail(pgResult.errorCode(), pgResult.errorMessage());
+        }
+        paymentRepository.save(payment);
+    }
+
     @Transactional(readOnly = true)
     public PaymentPageResponse listPayments(Long merchantId, PaymentStatus status,
                                             LocalDate from, LocalDate to,

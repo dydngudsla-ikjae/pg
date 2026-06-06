@@ -736,6 +736,24 @@ class MerchantApiTest {
         assertThat(body.get("merchantStatus")).isEqualTo("SUSPENDED");
     }
 
+    @Test
+    @DisplayName("검증 API가 존재하지 않는 키로 요청 시 valid=false, reason=NOT_FOUND를 반환한다")
+    void verifyApiWithNonExistentKeyReturnsValidFalseWithNotFoundReason() {
+        // when
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/internal/api-keys/verify")
+                .header("X-Internal-Service", "payment-service")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("apiKey", "mk_live_nonexistentkey"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        Map<?, ?> body = response.getBody();
+        assertThat(body.get("valid")).isEqualTo(false);
+        assertThat(body.get("reason")).isEqualTo("NOT_FOUND");
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

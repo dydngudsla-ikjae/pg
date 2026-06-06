@@ -609,6 +609,34 @@ class MerchantApiTest {
         assertThat(response.getBody().get("success")).isEqualTo(true);
     }
 
+    @Test
+    @DisplayName("가맹점 상태 변경 API가 SUSPENDED에서 ACTIVE로 복원을 허용한다")
+    void updateMerchantStatusFromSuspendedToActiveAllowed() {
+        // given
+        Number merchantId = registerMerchant();
+
+        // SUSPENDED로 변경
+        ResponseEntity<Map> suspendResponse = restClient.patch()
+                .uri("/v1/merchants/" + merchantId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("status", "SUSPENDED"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        assertThat(suspendResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // when: ACTIVE로 복원
+        ResponseEntity<Map> activateResponse = restClient.patch()
+                .uri("/v1/merchants/" + merchantId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("status", "ACTIVE"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(activateResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

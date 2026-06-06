@@ -250,4 +250,51 @@ class MerchantApiTest {
         assertThat(merchantNo).matches("M\\d{8}\\d{3}");
         assertThat(merchantNo).startsWith("M" + todayStr);
     }
+
+    @Test
+    @DisplayName("가맹점 조회 API가 모든 필드를 포함하여 200을 반환한다")
+    void getMerchantReturns200WithAllFields() {
+        // given: 가맹점 등록
+        String registerBody = """
+                {
+                  "name": "테스트몰",
+                  "businessNo": "111-22-33333",
+                  "representativeName": "이순신",
+                  "settlementBank": "004",
+                  "settlementAccount": "9999999999"
+                }
+                """;
+
+        ResponseEntity<Map> registerResponse = restClient.post()
+                .uri("/v1/merchants")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(registerBody)
+                .retrieve()
+                .toEntity(Map.class);
+
+        Map<?, ?> registerData = (Map<?, ?>) registerResponse.getBody().get("data");
+        Number merchantId = (Number) registerData.get("merchantId");
+
+        // when
+        ResponseEntity<Map> response = restClient.get()
+                .uri("/v1/merchants/" + merchantId)
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        Map<?, ?> body = response.getBody();
+        assertThat(body.get("success")).isEqualTo(true);
+        assertThat(body.get("error")).isNull();
+
+        Map<?, ?> data = (Map<?, ?>) body.get("data");
+        assertThat(data.get("merchantId")).isNotNull();
+        assertThat(data.get("merchantNo")).isNotNull();
+        assertThat(data.get("name")).isEqualTo("테스트몰");
+        assertThat(data.get("businessNo")).isEqualTo("111-22-33333");
+        assertThat(data.get("representativeName")).isEqualTo("이순신");
+        assertThat(data.get("status")).isEqualTo(MerchantStatus.ACTIVE.name());
+        assertThat(data.get("createdAt")).isNotNull();
+    }
 }

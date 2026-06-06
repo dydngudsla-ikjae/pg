@@ -15,6 +15,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  jackson:
+    mapper:
+      accept-case-insensitive-enums: true
   flyway:
     enabled: true
     locations: classpath:db/migration

@@ -5,6 +5,7 @@ import com.commerce.payment.dto.request.PaymentApproveRequest;
 import com.commerce.payment.dto.request.PaymentCancelRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
 import com.commerce.payment.dto.response.PaymentCancelResponse;
+import com.commerce.payment.dto.response.PaymentResponse;
 import com.commerce.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,13 @@ public class PaymentController {
             @Valid @RequestBody PaymentApproveRequest request) {
         var result = paymentService.approve(merchantId, idempotencyKey, request);
         return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @GetMapping("/v1/payments/{paymentKey}")
+    public ResponseEntity<ApiResponse<PaymentResponse>> getPayment(
+            @RequestHeader("X-Merchant-Id") Long merchantId,
+            @PathVariable String paymentKey) {
+        return ResponseEntity.ok(ApiResponse.ok(paymentService.getPayment(merchantId, paymentKey)));
     }
 
     @PostMapping("/v1/payments/{paymentKey}/cancel")

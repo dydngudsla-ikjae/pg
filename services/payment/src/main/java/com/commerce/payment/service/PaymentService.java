@@ -6,6 +6,7 @@ import com.commerce.payment.dto.request.PaymentApproveRequest;
 import com.commerce.payment.dto.request.PaymentCancelRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
 import com.commerce.payment.dto.response.PaymentCancelResponse;
+import com.commerce.payment.dto.response.PaymentResponse;
 import com.commerce.payment.exception.*;
 import com.commerce.payment.repository.CancelRepository;
 import com.commerce.payment.repository.IdempotencyKeyRepository;
@@ -201,6 +202,31 @@ public class PaymentService {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentResponse getPayment(Long merchantId, String paymentKey) {
+        var payment = paymentRepository.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new PaymentNotFoundException("결제를 찾을 수 없습니다: " + paymentKey));
+        return toPaymentResponse(payment);
+    }
+
+    private PaymentResponse toPaymentResponse(Payment payment) {
+        return new PaymentResponse(
+                payment.getPaymentKey(),
+                payment.getStatus().name(),
+                payment.getAmount(),
+                payment.getCancelledAmount(),
+                payment.remainAmount(),
+                payment.getMethod().name(),
+                payment.getCardCompany(),
+                payment.getCardLast4(),
+                payment.getMaskedCardNumber(),
+                payment.getFailureCode(),
+                payment.getFailureMessage(),
+                payment.getPaidAt(),
+                payment.getCreatedAt()
+        );
     }
 
     private PaymentApproveResponse toResponse(Payment payment) {

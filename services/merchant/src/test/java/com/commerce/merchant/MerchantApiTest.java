@@ -562,6 +562,21 @@ class MerchantApiTest {
         assertThat(data.get("webhookUrl")).isEqualTo(webhookUrl);
     }
 
+    @Test
+    @DisplayName("웹훅 URL 수정 API가 잘못된 URL 형식으로 요청 시 400을 반환한다")
+    void updateWebhookUrlWithInvalidUrlReturns400() {
+        Number merchantId = registerMerchant();
+
+        assertThatThrownBy(() ->
+                restClient.put()
+                        .uri("/v1/merchants/" + merchantId + "/webhook")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("webhookUrl", "not-a-url"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.BadRequest.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

@@ -6,6 +6,7 @@ import com.commerce.payment.domain.Payment;
 import com.commerce.payment.domain.PaymentStatus;
 import com.commerce.payment.dto.request.PaymentApproveRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
+import com.commerce.payment.exception.DuplicateOrderException;
 import com.commerce.payment.repository.OutboxEventRepository;
 import com.commerce.payment.repository.PaymentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,10 @@ public class PaymentService {
     public PaymentApproveResponse approve(Long merchantId, String idempotencyKey, PaymentApproveRequest request) {
         if (request.method() == com.commerce.payment.domain.PaymentMethod.CARD && request.card() == null) {
             throw new IllegalArgumentException("CARD 결제는 카드 정보가 필요합니다.");
+        }
+
+        if (paymentRepository.existsByMerchantIdAndOrderId(merchantId, request.orderId())) {
+            throw new DuplicateOrderException("이미 존재하는 주문입니다: " + request.orderId());
         }
 
         String paymentKey = "pay_" + UUID.randomUUID().toString().replace("-", "");

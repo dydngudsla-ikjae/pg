@@ -27,6 +27,10 @@ public class PaymentService {
     private final ObjectMapper objectMapper;
 
     public PaymentApproveResponse approve(Long merchantId, String idempotencyKey, PaymentApproveRequest request) {
+        if (request.method() == com.commerce.payment.domain.PaymentMethod.CARD && request.card() == null) {
+            throw new IllegalArgumentException("CARD 결제는 카드 정보가 필요합니다.");
+        }
+
         String paymentKey = "pay_" + UUID.randomUUID().toString().replace("-", "");
         var payment = Payment.builder()
                 .merchantId(merchantId)

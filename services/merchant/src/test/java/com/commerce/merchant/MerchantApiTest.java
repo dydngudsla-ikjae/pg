@@ -683,6 +683,29 @@ class MerchantApiTest {
         });
     }
 
+    @Test
+    @DisplayName("검증 API가 유효한 키 + ACTIVE 가맹점 요청 시 valid=true, merchantStatus=ACTIVE를 반환한다")
+    void verifyApiWithValidKeyAndActiveMerchantReturnsValidTrue() {
+        // given
+        Number merchantId = registerMerchant();
+        String plainKey = issueApiKeyGetPlainKey(merchantId, "live");
+
+        // when
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/internal/api-keys/verify")
+                .header("X-Internal-Service", "payment-service")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("apiKey", plainKey))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<?, ?> body = response.getBody();
+        assertThat(body.get("valid")).isEqualTo(true);
+        assertThat(body.get("merchantStatus")).isEqualTo("ACTIVE");
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

@@ -652,6 +652,19 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.BadRequest.class);
     }
 
+    @Test
+    @DisplayName("가맹점 상태 변경 API가 존재하지 않는 가맹점 id로 요청 시 404를 반환한다")
+    void updateMerchantStatusWithNonExistentMerchantReturns404() {
+        assertThatThrownBy(() ->
+                restClient.patch()
+                        .uri("/v1/merchants/99999/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(Map.of("status", "SUSPENDED"))
+                        .retrieve()
+                        .toBodilessEntity()
+        ).isInstanceOf(HttpClientErrorException.NotFound.class);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

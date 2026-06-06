@@ -6,9 +6,13 @@ import com.commerce.payment.dto.request.PaymentApproveRequest;
 import com.commerce.payment.dto.request.PaymentCancelRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
 import com.commerce.payment.dto.response.PaymentCancelResponse;
+import com.commerce.payment.dto.response.PaymentPageResponse;
 import com.commerce.payment.dto.response.PaymentResponse;
 import com.commerce.payment.exception.*;
 import com.commerce.payment.repository.CancelRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import com.commerce.payment.repository.IdempotencyKeyRepository;
 import com.commerce.payment.repository.OutboxEventRepository;
 import com.commerce.payment.repository.PaymentRepository;
@@ -20,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -202,6 +209,31 @@ public class PaymentService {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentPageResponse listPayments(Long merchantId, PaymentStatus status,
+                                            LocalDate from, LocalDate to,
+                                            int page, int size) {
+        var pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Specification<Payment> spec = (root, query, cb) -> cb.equal(root.get("merchantId"), merchantId);
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (from != null) {
+            OffsetDateTime fromDt = from.atStartOfDay().atOffset(ZoneOffset.UTC);
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), fromDt));
+        }
+        if (to != null) {
+            OffsetDateTime toDt = to.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+            spec = spec.and((root, query, cb) -> cb.lessThan(root.get("createdAt"), toDt));
+        }
+
+        var result = paymentRepository.findAll(spec, pageable);
+        var content = result.getContent().stream().map(this::toPaymentResponse).toList();
+        return new PaymentPageResponse(content, result.getTotalElements(),
+                result.getTotalPages(), result.getNumber(), result.getSize());
     }
 
     @Transactional(readOnly = true)

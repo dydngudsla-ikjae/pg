@@ -712,8 +712,8 @@ class PaymentApiTest {
     void listPaymentsFiltersByDateRange() {
         approvePayment("idem-025", "ORDER-025");
 
-        String from = OffsetDateTime.now().minusDays(1).toString();
-        String to = OffsetDateTime.now().plusDays(1).toString();
+        String from = OffsetDateTime.now().minusDays(1).toLocalDate().toString();
+        String to = OffsetDateTime.now().plusDays(1).toLocalDate().toString();
 
         var response = client.get()
                 .uri(uriBuilder -> uriBuilder

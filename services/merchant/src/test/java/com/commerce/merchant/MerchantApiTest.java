@@ -590,6 +590,25 @@ class MerchantApiTest {
         ).isInstanceOf(HttpClientErrorException.NotFound.class);
     }
 
+    @Test
+    @DisplayName("가맹점 상태 변경 API가 SUSPENDED로 변경 후 200을 반환한다")
+    void updateMerchantStatusToSuspendedReturns200() {
+        // given
+        Number merchantId = registerMerchant();
+
+        // when
+        ResponseEntity<Map> response = restClient.patch()
+                .uri("/v1/merchants/" + merchantId + "/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("status", "SUSPENDED"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().get("success")).isEqualTo(true);
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

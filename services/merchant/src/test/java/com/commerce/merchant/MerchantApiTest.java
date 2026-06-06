@@ -1,6 +1,7 @@
 package com.commerce.merchant;
 
 import com.commerce.merchant.domain.MerchantStatus;
+import com.commerce.merchant.repository.MerchantApiKeyRepository;
 import com.commerce.merchant.repository.MerchantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,10 +32,14 @@ class MerchantApiTest {
     @Autowired
     MerchantRepository merchantRepository;
 
+    @Autowired
+    MerchantApiKeyRepository merchantApiKeyRepository;
+
     RestClient restClient;
 
     @BeforeEach
     void setUp() {
+        merchantApiKeyRepository.deleteAll();
         merchantRepository.deleteAll();
         restClient = RestClient.builder()
                 .baseUrl("http://localhost:" + port)
@@ -384,6 +389,31 @@ class MerchantApiTest {
         Map<?, ?> data1 = (Map<?, ?>) response1.getBody().get("data");
         Map<?, ?> data2 = (Map<?, ?>) response2.getBody().get("data");
         assertThat(data1.get("keyId")).isNotEqualTo(data2.get("keyId"));
+    }
+
+    @Test
+    @DisplayName("API 키 발급 후 DB에는 원문 키가 저장되지 않고 key_hash만 저장된다")
+    void afterIssuingApiKeyOnlyKeyHashIsStoredInDb() {
+        // given
+        Number merchantId = registerMerchant();
+
+        // when
+        ResponseEntity<Map> response = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", "live"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Map<?, ?> data = (Map<?, ?>) response.getBody().get("data");
+        Number keyId = (Number) data.get("keyId");
+        String plainKey = (String) data.get("plainKey");
+
+        // then: DB에서 조회하여 keyHash만 저장되어 있는지 확인
+        var saved = merchantApiKeyRepository.findById(keyId.longValue()).orElseThrow();
+        assertThat(saved.getKeyHash()).isNotBlank();
+        assertThat(saved.getKeyHash()).isNotEqualTo(plainKey);
     }
 
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환

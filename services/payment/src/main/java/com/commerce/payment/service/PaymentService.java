@@ -1,12 +1,13 @@
 package com.commerce.payment.service;
 
 import com.commerce.payment.client.PgClient;
-import com.commerce.payment.domain.OutboxEvent;
-import com.commerce.payment.domain.Payment;
-import com.commerce.payment.domain.PaymentStatus;
+import com.commerce.payment.domain.*;
 import com.commerce.payment.dto.request.PaymentApproveRequest;
 import com.commerce.payment.dto.response.PaymentApproveResponse;
 import com.commerce.payment.exception.DuplicateOrderException;
+import com.commerce.payment.exception.IdempotencyConflictException;
+import com.commerce.payment.exception.InvalidPaymentStateException;
+import com.commerce.payment.repository.IdempotencyKeyRepository;
 import com.commerce.payment.repository.OutboxEventRepository;
 import com.commerce.payment.repository.PaymentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +16,8 @@ import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.UUID;
 
 @Service
@@ -23,18 +26,47 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final PgClient pgClient;
     private final ObjectMapper objectMapper;
 
+    @SneakyThrows
     public PaymentApproveResponse approve(Long merchantId, String idempotencyKey, PaymentApproveRequest request) {
-        if (request.method() == com.commerce.payment.domain.PaymentMethod.CARD && request.card() == null) {
+        if (request.method() == PaymentMethod.CARD && request.card() == null) {
             throw new IllegalArgumentException("CARD 결제는 카드 정보가 필요합니다.");
+        }
+
+        String endpoint = "/v1/payments";
+        String requestHash = computeHash(request);
+
+        var existing = idempotencyKeyRepository
+                .findByMerchantIdAndHttpMethodAndEndpointAndIdempotencyKey(
+                        merchantId, "POST", endpoint, idempotencyKey);
+
+        if (existing.isPresent()) {
+            var idem = existing.get();
+            if (idem.getStatus() == IdempotencyStatus.PROCESSING) {
+                throw new IdempotencyConflictException();
+            }
+            if (!requestHash.equals(idem.getRequestHash())) {
+                throw new InvalidPaymentStateException("동일 멱등키에 다른 요청 본문이 사용되었습니다.");
+            }
+            return objectMapper.readValue(idem.getResponseBody(), PaymentApproveResponse.class);
         }
 
         if (paymentRepository.existsByMerchantIdAndOrderId(merchantId, request.orderId())) {
             throw new DuplicateOrderException("이미 존재하는 주문입니다: " + request.orderId());
         }
+
+        var idem = IdempotencyKey.builder()
+                .idempotencyKey(idempotencyKey)
+                .merchantId(merchantId)
+                .httpMethod("POST")
+                .endpoint(endpoint)
+                .requestHash(requestHash)
+                .build();
+        idempotencyKeyRepository.save(idem);
 
         String paymentKey = "pay_" + UUID.randomUUID().toString().replace("-", "");
         var payment = Payment.builder()
@@ -66,7 +98,11 @@ public class PaymentService {
             saveOutboxEvent("payment.paid", payment);
         }
 
-        return toResponse(payment);
+        var response = toResponse(payment);
+        idem.complete(payment.getId(), objectMapper.writeValueAsString(response));
+        idempotencyKeyRepository.save(idem);
+
+        return response;
     }
 
     @SneakyThrows
@@ -78,6 +114,18 @@ public class PaymentService {
                 .eventType(eventType)
                 .payload(payload)
                 .build());
+    }
+
+    @SneakyThrows
+    private String computeHash(Object obj) {
+        String json = objectMapper.writeValueAsString(obj);
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(json.getBytes(StandardCharsets.UTF_8));
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private PaymentApproveResponse toResponse(Payment payment) {

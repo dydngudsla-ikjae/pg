@@ -356,6 +356,36 @@ class MerchantApiTest {
         assertThat((String) data.get("plainKey")).startsWith("mk_test_");
     }
 
+    @Test
+    @DisplayName("API 키 발급 API가 동일 가맹점에 여러 키 발급을 허용한다")
+    void issueMultipleApiKeysForSameMerchant() {
+        // given
+        Number merchantId = registerMerchant();
+
+        // when: 두 번 발급
+        ResponseEntity<Map> response1 = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", "live"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        ResponseEntity<Map> response2 = restClient.post()
+                .uri("/v1/merchants/" + merchantId + "/api-keys")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("env", "live"))
+                .retrieve()
+                .toEntity(Map.class);
+
+        // then: 둘 다 201
+        assertThat(response1.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response2.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        Map<?, ?> data1 = (Map<?, ?>) response1.getBody().get("data");
+        Map<?, ?> data2 = (Map<?, ?>) response2.getBody().get("data");
+        assertThat(data1.get("keyId")).isNotEqualTo(data2.get("keyId"));
+    }
+
     // 헬퍼 메서드: 가맹점 등록 후 merchantId 반환
     private Number registerMerchant() {
         String body = """

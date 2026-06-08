@@ -18,7 +18,7 @@ import java.util.Set;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Payment {
 
-    private static final long MAX_AMOUNT = 10_000_000L;
+    public static final long MAX_AMOUNT = 10_000_000L;
 
     private static final Map<PaymentStatus, Set<PaymentStatus>> ALLOWED_TRANSITIONS = Map.of(
             PaymentStatus.READY, EnumSet.of(PaymentStatus.PAID, PaymentStatus.FAILED, PaymentStatus.UNKNOWN),
@@ -127,11 +127,15 @@ public class Payment {
         this.updatedAt = OffsetDateTime.now();
     }
 
+    public boolean exceedsCancelLimit(long cancelAmount) {
+        return this.cancelledAmount + cancelAmount > this.amount;
+    }
+
     public void cancel(long cancelAmount) {
-        long newCancelledAmount = this.cancelledAmount + cancelAmount;
-        if (newCancelledAmount > this.amount) {
+        if (exceedsCancelLimit(cancelAmount)) {
             throw new IllegalArgumentException("누적 취소 금액이 원금을 초과합니다.");
         }
+        long newCancelledAmount = this.cancelledAmount + cancelAmount;
         PaymentStatus next = newCancelledAmount == this.amount
                 ? PaymentStatus.CANCELLED
                 : PaymentStatus.PARTIAL_CANCELLED;

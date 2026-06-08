@@ -30,8 +30,9 @@ public class OutboxEvent {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private String status;
+    private OutboxEventStatus status;
 
     @Column(name = "retry_count", nullable = false)
     private Integer retryCount;
@@ -48,18 +49,18 @@ public class OutboxEvent {
         this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.payload = payload;
-        this.status = "PENDING";
+        this.status = OutboxEventStatus.PENDING;
         this.retryCount = 0;
         this.createdAt = OffsetDateTime.now();
     }
 
     public void markPublished() {
-        this.status = "PUBLISHED";
+        this.status = OutboxEventStatus.PUBLISHED;
         this.publishedAt = OffsetDateTime.now();
     }
 
     public void markFailed() {
-        this.status = "FAILED";
+        this.status = OutboxEventStatus.FAILED;
         this.retryCount++;
     }
 }

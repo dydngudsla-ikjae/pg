@@ -1,5 +1,6 @@
 package com.commerce.payment.dto.request;
 
+import com.commerce.payment.domain.Payment;
 import com.commerce.payment.domain.PaymentMethod;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
@@ -13,7 +14,7 @@ public record PaymentApproveRequest(
         @NotBlank String orderId,
 
         @Schema(description = "결제 금액 (1 이상 10,000,000 이하)", example = "10000")
-        @NotNull @Positive @Max(10_000_000) Long amount,
+        @NotNull @Positive @Max(Payment.MAX_AMOUNT) Long amount,
 
         @Schema(description = "결제 수단", example = "CARD", allowableValues = {"CARD"})
         @NotNull PaymentMethod method,

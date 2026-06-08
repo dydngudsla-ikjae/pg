@@ -35,9 +35,6 @@ class PaymentApiTest {
     private PaymentRepository paymentRepository;
 
     @Autowired
-    private PaymentHistoryRepository paymentHistoryRepository;
-
-    @Autowired
     private CancelRepository cancelRepository;
 
     @Autowired
@@ -62,7 +59,6 @@ class PaymentApiTest {
         cancelRepository.deleteAll();
         idempotencyKeyRepository.deleteAll();
         outboxEventRepository.deleteAll();
-        paymentHistoryRepository.deleteAll();
         paymentRepository.deleteAll();
 
         mockPg.resetAll();
@@ -270,7 +266,7 @@ class PaymentApiTest {
     void approveCreatesOutboxEventWithPendingStatus() {
         approvePayment("idem-005", "ORDER-005");
 
-        List<OutboxEvent> events = outboxEventRepository.findByStatusOrderByCreatedAtAsc("PENDING");
+        List<OutboxEvent> events = outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
 
         assertThat(events).isNotEmpty();
         assertThat(events).anyMatch(e -> e.getEventType().equals("payment.paid"));
@@ -1181,7 +1177,7 @@ class PaymentApiTest {
                 .retrieve()
                 .toBodilessEntity();
 
-        List<OutboxEvent> events = outboxEventRepository.findByStatusOrderByCreatedAtAsc("PENDING");
+        List<OutboxEvent> events = outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
         assertThat(events).isNotEmpty();
         assertThat(events).anyMatch(e -> e.getEventType().equals("payment.cancelled"));
     }
@@ -1346,7 +1342,7 @@ class PaymentApiTest {
                 .retrieve()
                 .toBodilessEntity();
 
-        List<OutboxEvent> events = outboxEventRepository.findByStatusOrderByCreatedAtAsc("PENDING");
+        List<OutboxEvent> events = outboxEventRepository.findByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
         assertThat(events).isNotEmpty();
     }
 
